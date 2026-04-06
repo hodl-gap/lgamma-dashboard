@@ -54,7 +54,7 @@ async def fetch_binance_price():
         perp_price = None
         funding_rate = None
 
-        # Try Binance first
+        # Try Binance first (with fallback to Deribit)
         try:
             async with session.get(f"{settings.binance_url}/fapi/v1/ticker/price",
                                    params={"symbol": "BTCUSDT"}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
