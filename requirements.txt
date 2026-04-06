@@ -6,3 +6,4 @@ python-dotenv>=1.0
 streamlit>=1.30
 plotly>=5.15
 pandas>=2.0
+pytz>=2024.1
