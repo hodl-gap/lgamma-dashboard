@@ -227,9 +227,13 @@ with tab2:
                 """, [selected_expiry, selected_expiry])
 
                 if chain:
-                    strikes_market = np.array([c["strike_price"] for c in chain])
-                    bid_ivs = np.array([c.get("bid_iv") or np.nan for c in chain]) * 100
-                    ask_ivs = np.array([c.get("ask_iv") or np.nan for c in chain]) * 100
+                    # Filter to OTM only: puts below ATM, calls at/above ATM
+                    otm_market = [c for c in chain if
+                                  (c["option_type"] == "put" and c["strike_price"] < atm_strike) or
+                                  (c["option_type"] == "call" and c["strike_price"] >= atm_strike)]
+                    strikes_market = np.array([c["strike_price"] for c in otm_market])
+                    bid_ivs = np.array([c.get("bid_iv") or np.nan for c in otm_market]) * 100
+                    ask_ivs = np.array([c.get("ask_iv") or np.nan for c in otm_market]) * 100
 
                     # Fitted curve (fine grid)
                     strike_range = np.linspace(strikes_market.min(), strikes_market.max(), 200)
