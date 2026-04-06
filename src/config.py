@@ -10,9 +10,11 @@ def _get_secret(key: str, default: str = "") -> str:
     """Read from Streamlit Cloud secrets first, then fall back to env vars."""
     try:
         import streamlit as st
-        return st.secrets.get(key, os.getenv(key, default))
+        if hasattr(st, "secrets") and key in st.secrets:
+            return str(st.secrets[key])
     except Exception:
-        return os.getenv(key, default)
+        pass
+    return os.getenv(key, default)
 
 
 class Settings:
