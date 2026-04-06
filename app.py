@@ -193,7 +193,17 @@ with tab2:
                 put_shift = st.number_input("Put Shift", value=float(p["put_shift"]), format="%.4f", step=0.005, key="pshift")
                 call_shift = st.number_input("Call Shift", value=float(p["call_shift"]), format="%.4f", step=0.005, key="cshift")
                 atm_strike = float(p["atm_strike"])
-                st.text(f"ATM Strike: {atm_strike:,.0f}")
+
+                # ATM IV = avg of call bid, call ask, put bid, put ask at ATM strike
+                atm_ivs = query("""
+                    SELECT bid_iv, ask_iv, option_type FROM option_chain_raw
+                    WHERE expiry_date = ? AND strike_price = ?
+                    AND timestamp = (SELECT MAX(timestamp) FROM option_chain_raw WHERE expiry_date = ?)
+                """, [selected_expiry, atm_strike, selected_expiry])
+                atm_iv_vals = [v for row in (atm_ivs or []) for v in [row.get("bid_iv"), row.get("ask_iv")] if v and not np.isnan(v)]
+                market_atm_iv = np.mean(atm_iv_vals) if atm_iv_vals else None
+                atm_iv_display = f"{market_atm_iv*100:.1f}%" if market_atm_iv else "N/A"
+                st.text(f"ATM Strike: {atm_strike:,.0f}  |  Mkt ATM IV: {atm_iv_display}")
 
                 # Get T for this expiry
                 chain_sample = query("""
@@ -304,7 +314,11 @@ with tab2:
             """, [selected_expiry, selected_expiry])
 
             if vs_data:
-                df = pd.DataFrame(vs_data)
+                # Filter to OTM only: puts below ATM, calls at/above ATM
+                vs_otm = [v for v in vs_data if
+                          (v["option_type"] == "put" and v["strike_price"] < atm_strike) or
+                          (v["option_type"] == "call" and v["strike_price"] >= atm_strike)]
+                df = pd.DataFrame(vs_otm)
                 df["market_bid_iv"] = df["market_bid_iv"].apply(lambda x: f"{x*100:.1f}%" if x and not np.isnan(x) else "")
                 df["market_ask_iv"] = df["market_ask_iv"].apply(lambda x: f"{x*100:.1f}%" if x and not np.isnan(x) else "")
                 df["custom_iv"] = df["custom_iv"].apply(lambda x: f"{x*100:.1f}%")
