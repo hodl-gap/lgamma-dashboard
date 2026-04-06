@@ -1,0 +1,6 @@
+.env
+lgamma.duckdb
+.pytest_cache/
+references/
+__pycache__/
+*.pyc
