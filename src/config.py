@@ -30,9 +30,9 @@ class Settings:
     db_path = str(BASE_DIR / "lgamma.duckdb")
 
     # Polling intervals (seconds)
-    poll_price_sec = 5
-    poll_chain_sec = 15
-    poll_fills_sec = 30
+    poll_price_sec = 30
+    poll_chain_sec = 60
+    poll_fills_sec = 120
 
     # Pricing defaults
     risk_free_rate = 0.0
