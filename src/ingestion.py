@@ -49,22 +49,35 @@ async def fetch_orderbooks(session, instrument_names):
 
 
 async def fetch_binance_price():
-    """Fetch BTC/USDT perp price + funding rate from Binance."""
+    """Fetch BTC/USDT perp price + funding rate from Binance, with Deribit fallback."""
     async with aiohttp.ClientSession() as session:
-        # Price
-        async with session.get(f"{settings.binance_url}/fapi/v1/ticker/price",
-                               params={"symbol": "BTCUSDT"}) as resp:
-            price_data = await resp.json()
-            perp_price = float(price_data["price"])
+        perp_price = None
+        funding_rate = None
 
-        # Funding rate
+        # Try Binance first
         try:
+            async with session.get(f"{settings.binance_url}/fapi/v1/ticker/price",
+                                   params={"symbol": "BTCUSDT"}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                price_data = await resp.json()
+                perp_price = float(price_data["price"])
+
             async with session.get(f"{settings.binance_url}/fapi/v1/fundingRate",
-                                   params={"symbol": "BTCUSDT", "limit": "1"}) as resp:
+                                   params={"symbol": "BTCUSDT", "limit": "1"}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 funding_data = await resp.json()
                 funding_rate = float(funding_data[0]["fundingRate"]) if funding_data else None
         except Exception:
-            funding_rate = None
+            logger.info("Binance unreachable, falling back to Deribit index price")
+
+        # Fallback: Deribit index price
+        if perp_price is None:
+            try:
+                async with session.get(f"{settings.deribit_url}/public/get_index_price",
+                                       params={"index_name": "btc_usd"}) as resp:
+                    data = await resp.json()
+                    perp_price = float(data["result"]["index_price"])
+            except Exception as e:
+                logger.error(f"Deribit index price fallback also failed: {e}")
+                raise
 
         return perp_price, funding_rate
 
