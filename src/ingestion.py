@@ -131,9 +131,9 @@ async def fetch_and_process():
         if underlying_price is None:
             underlying_price = perp_price  # fallback
 
-        # Filter strikes within range
-        lower = underlying_price * (1 - settings.strike_range_pct)
-        upper = underlying_price * (1 + settings.strike_range_pct)
+        # Ingest wide range (50%) — UI applies user's narrower filter at display time
+        lower = underlying_price * 0.50
+        upper = underlying_price * 1.50
         filtered_names = [
             name for name, info in instrument_map.items()
             if lower <= info["strike"] <= upper

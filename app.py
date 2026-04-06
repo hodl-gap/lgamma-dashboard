@@ -68,8 +68,7 @@ with st.sidebar:
 
     if r != settings.risk_free_rate:
         settings.risk_free_rate = r
-    if strike_range != settings.strike_range_pct:
-        settings.strike_range_pct = strike_range
+    st.session_state["strike_range_pct"] = strike_range
 
 
 # ============================================================
@@ -352,6 +351,14 @@ with tab3:
             )
             ORDER BY strike_price, option_type
         """, [sel_exp, sel_exp])
+
+        # Apply strike range filter from sidebar
+        _sr = st.session_state.get("strike_range_pct", settings.strike_range_pct)
+        _mkt = query("SELECT deribit_index FROM market_data ORDER BY timestamp DESC LIMIT 1")
+        if vs and _mkt:
+            _idx = _mkt[0]["deribit_index"]
+            _lo, _hi = _idx * (1 - _sr), _idx * (1 + _sr)
+            vs = [v for v in vs if _lo <= v["strike_price"] <= _hi]
 
         if vs:
             calls = [v for v in vs if v["option_type"] == "call"]
