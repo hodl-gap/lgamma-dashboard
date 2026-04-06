@@ -18,6 +18,16 @@ st.set_page_config(page_title="Lgamma BTC Options", layout="wide", page_icon="ðŸ
 # Initialize
 init_schema()
 
+
+def _strike_bounds():
+    """Return (lower, upper) strike bounds based on sidebar setting and current index."""
+    sr = st.session_state.get("strike_range_pct", settings.strike_range_pct)
+    mkt = query("SELECT deribit_index FROM market_data ORDER BY timestamp DESC LIMIT 1")
+    if mkt:
+        idx = mkt[0]["deribit_index"]
+        return idx * (1 - sr), idx * (1 + sr)
+    return 0, float("inf")
+
 # Auto-start polling
 if "polling_started" not in st.session_state:
     start_polling()
@@ -236,6 +246,11 @@ with tab2:
                 """, [selected_expiry, selected_expiry])
 
                 if chain:
+                    # Apply strike range filter
+                    _lo, _hi = _strike_bounds()
+                    chain = [c for c in chain if _lo <= c["strike_price"] <= _hi]
+
+                if chain:
                     # Filter to OTM only: puts below ATM, calls at/above ATM
                     otm_market = [c for c in chain if
                                   (c["option_type"] == "put" and c["strike_price"] < atm_strike) or
@@ -313,6 +328,11 @@ with tab2:
             """, [selected_expiry, selected_expiry])
 
             if vs_data:
+                # Apply strike range filter
+                _lo, _hi = _strike_bounds()
+                vs_data = [v for v in vs_data if _lo <= v["strike_price"] <= _hi]
+
+            if vs_data:
                 # Filter to OTM only: puts below ATM, calls at/above ATM
                 vs_otm = [v for v in vs_data if
                           (v["option_type"] == "put" and v["strike_price"] < atm_strike) or
@@ -353,12 +373,8 @@ with tab3:
         """, [sel_exp, sel_exp])
 
         # Apply strike range filter from sidebar
-        _sr = st.session_state.get("strike_range_pct", settings.strike_range_pct)
-        _mkt = query("SELECT deribit_index FROM market_data ORDER BY timestamp DESC LIMIT 1")
-        if vs and _mkt:
-            _idx = _mkt[0]["deribit_index"]
-            _lo, _hi = _idx * (1 - _sr), _idx * (1 + _sr)
-            vs = [v for v in vs if _lo <= v["strike_price"] <= _hi]
+        _lo, _hi = _strike_bounds()
+        vs = [v for v in vs if _lo <= v["strike_price"] <= _hi] if vs else vs
 
         if vs:
             calls = [v for v in vs if v["option_type"] == "call"]
